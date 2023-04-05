@@ -1,0 +1,148 @@
+<html>
+  <head>
+      <link rel="icon" href="data:;base64,=">
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>
+
+    </title>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+    <script>
+    require(["esri/Map",  "esri/views/SceneView", "esri/layers/GeoJSONLayer", "esri/widgets/CoordinateConversion", "esri/geometry/support/webMercatorUtils"], (
+          Map,  SceneView, GeoJSONLayer, CoordinateConversion, webMercatorUtils) => {
+
+        //let dt = document.getElementById("datetime")
+        //console.log("http://127.0.0.1:8000/supermag?dt="+dt)
+        //let url = "http://127.0.0.1:8000/supermag?dt="+dt
+
+        let map = new Map({
+          basemap: "topo-vector",
+          ground: "world-elevation"
+        });
+
+        let view = new SceneView({
+          container: "viewDiv",
+          map: map,
+          scale: 50000000,
+          center: [-101.17, 21.78]
+        });
+
+        view.on("layerview-create", (event) => {
+            document.getElementById('loader1').style.visibility = 'hidden';
+        });
+
+        document.getElementById('submit').onclick = myFunction;
+        function myFunction(event){
+            document.getElementById('loader1').style.visibility = 'visible';
+            let dt = document.getElementById("datetime").value;
+            let coord = coordsWidget.innerHTML;
+            let url = "/supermag?dt="+dt+"&coord="+coord;
+            {#let url = "/supermag?dt="+dt;#}
+            //alert(url)
+            map.layers.remove(map.findLayerById('supermag'));
+
+            var template = {
+            title: "{station} station",
+            content: " SZA {SZA}"
+            };
+
+            let geojsonLayer = new GeoJSONLayer({
+                id: 'supermag',
+              url: url,
+              popupTemplate: template,
+            });
+
+            geojsonLayer.renderer = {
+              type: "simple", // autocasts as new SimpleRenderer()
+              symbol: {
+                type: "point-3d", // autocasts as new PointSymbol3D()
+                symbolLayers: [{
+                  type: "icon", // autocasts as new IconSymbol3DLayer()
+                  resource: { primitive: "circle"},
+                  material: { color: [255, 84, 54, 1] },
+                  size: 5
+                }]
+              }
+            };
+
+            map.add(geojsonLayer);
+
+            view.on("layerview-create", (event) => {
+            document.getElementById('loader1').style.visibility = 'hidden';
+            });
+        }
+
+        // const ccWidget = new CoordinateConversion({
+        // view: view
+        //});
+        //view.ui.add(ccWidget, "bottom-left");
+
+        var coordsWidget = document.createElement("div");
+        coordsWidget.id = "coordsWidget";
+        coordsWidget.className = "esri-widget esri-component";
+        coordsWidget.style.padding = "7px 15px 5px";
+
+        view.ui.add(coordsWidget, "bottom-right");
+
+        function showCoordinates(pt) {
+          var coords =
+            pt.latitude.toFixed(3) +
+            "," +
+            pt.longitude.toFixed(3);
+            coordsWidget.innerHTML = coords;
+            {#document.getElementById("coordsWidget").innerHTML = coords;#}
+        }
+
+        view.on("click", function (evt) {
+        showCoordinates(view.toMap({ x: evt.x, y: evt.y }));
+        });
+
+        });
+
+    </script>
+  </head>
+
+  <body>
+{#          <form method="GET" name="datetimeForm">#}
+{#            <label for="date">Дата и время: </label>#}
+{#            <input type="datetime-local" name="datetime" id="datetime" required/>#}
+{#              <input type="button" value="ок" id="submit" name="submit">#}
+{#        </form>#}
+
+    <label for="datetime">Дата и время: </label>
+    <input type="datetime-local" name="datetime" id="datetime" required/>
+    <input type="button" value="ок" id="submit" name="submit">
+{#    <label for="coordinates">Новые координаты: </label>#}
+{#    <input type="text" id="coordinates">#}
+{#    <div id = "coordsWidget" style = 'padding:7px 15px 5px' > </div>#}
+
+
+
+
+    <div id="loader1" style="position:absolute;z-index:1000; top:50%; left:50%;">
+            <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
+            <span class="sr-only">Loading...</span>
+            </div>
+    </div>
+
+    <div id="viewDiv"></div>
+  </body>
+</html>
