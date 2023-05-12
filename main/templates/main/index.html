@@ -22,16 +22,14 @@
 
     <link
       rel="stylesheet"
-      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+      href="https://js.arcgis.com/4.26/esri/themes/light/main.css"
     />
-    <script src="https://js.arcgis.com/4.25/"></script>
+    <script src="https://js.arcgis.com/4.26/"></script>
     <script>
-    require(["esri/Map",  "esri/views/SceneView", "esri/layers/GeoJSONLayer", "esri/widgets/CoordinateConversion", "esri/geometry/support/webMercatorUtils"], (
-          Map,  SceneView, GeoJSONLayer, CoordinateConversion, webMercatorUtils) => {
+    require(["esri/config", "esri/Map",  "esri/views/SceneView", "esri/layers/GeoJSONLayer"], (
+          esriConfig, Map,  SceneView, GeoJSONLayer) => {
 
-        //let dt = document.getElementById("datetime")
-        //console.log("http://127.0.0.1:8000/supermag?dt="+dt)
-        //let url = "http://127.0.0.1:8000/supermag?dt="+dt
+        esriConfig.request.timeout= 600000;
 
         let map = new Map({
           basemap: "topo-vector",
@@ -49,33 +47,35 @@
             document.getElementById('loader1').style.visibility = 'hidden';
         });
 
+        let template = {
+            title: "{station} station",
+            content: "N.nez {par}"
+        };
+
+        window.onload = myFunction;
+
         document.getElementById('submit').onclick = myFunction;
         function myFunction(event){
-            document.getElementById('loader1').style.visibility = 'visible';
-            let dt = document.getElementById("datetime").value;
-            let coord = coordsWidget.innerHTML;
-            let url = "/supermag?dt="+dt+"&coord="+coord;
-            {#let url = "/supermag?dt="+dt;#}
-            //alert(url)
             map.layers.remove(map.findLayerById('supermag'));
+            map.layers.remove(map.findLayerById('kriging'));
 
-            var template = {
-            title: "{station} station",
-            content: " SZA {SZA}"
-            };
+            document.getElementById('loader1').style.visibility = 'visible';
+
+            let dt = document.getElementById("datetime").value;
+            let url = "/supermag?dt="+dt;
 
             let geojsonLayer = new GeoJSONLayer({
                 id: 'supermag',
-              url: url,
-              popupTemplate: template,
+                url: url,
+                popupTemplate: template,
             });
 
             geojsonLayer.renderer = {
-              type: "simple", // autocasts as new SimpleRenderer()
+              type: "simple",
               symbol: {
-                type: "point-3d", // autocasts as new PointSymbol3D()
+                type: "point-3d",
                 symbolLayers: [{
-                  type: "icon", // autocasts as new IconSymbol3DLayer()
+                  type: "icon",
                   resource: { primitive: "circle"},
                   material: { color: [255, 84, 54, 1] },
                   size: 5
@@ -90,12 +90,7 @@
             });
         }
 
-        // const ccWidget = new CoordinateConversion({
-        // view: view
-        //});
-        //view.ui.add(ccWidget, "bottom-left");
-
-        var coordsWidget = document.createElement("div");
+        let coordsWidget = document.createElement("div");
         coordsWidget.id = "coordsWidget";
         coordsWidget.className = "esri-widget esri-component";
         coordsWidget.style.padding = "7px 15px 5px";
@@ -103,39 +98,57 @@
         view.ui.add(coordsWidget, "bottom-right");
 
         function showCoordinates(pt) {
-          var coords =
-            pt.latitude.toFixed(3) +
+          let coords =
+            pt.latitude.toFixed(6) +
             "," +
-            pt.longitude.toFixed(3);
+            pt.longitude.toFixed(6);
             coordsWidget.innerHTML = coords;
-            {#document.getElementById("coordsWidget").innerHTML = coords;#}
         }
 
         view.on("click", function (evt) {
-        showCoordinates(view.toMap({ x: evt.x, y: evt.y }));
-        });
+            if (evt.button === 2) {
+                showCoordinates(view.toMap({ x: evt.x, y: evt.y }));
+                map.layers.remove(map.findLayerById('kriging'));
+                let coord = coordsWidget.innerHTML;
+                let url1 = "/kriging?coord="+coord;
+                //map.layers.remove(map.findLayerById('kriging'));
 
+                let geojsonLayer1 = new GeoJSONLayer({
+                    id: 'kriging',
+                    url: url1,
+                    popupTemplate: template,
+                });
+
+                geojsonLayer1.renderer = {
+                  type: "simple",
+                  symbol: {
+                    type: "point-3d",
+                    symbolLayers: [{
+                      type: "icon",
+                      resource: { primitive: "circle"},
+                      material: { color: [255, 84, 54, 1] },
+                      size: 5
+                    }]
+                  }
+                };
+
+                map.add(geojsonLayer1);
+
+                view.on("layerview-create", (event) => {
+                document.getElementById('loader1').style.visibility = 'hidden';
+                });
+            }
+        });
         });
 
     </script>
   </head>
 
   <body>
-{#          <form method="GET" name="datetimeForm">#}
-{#            <label for="date">Дата и время: </label>#}
-{#            <input type="datetime-local" name="datetime" id="datetime" required/>#}
-{#              <input type="button" value="ок" id="submit" name="submit">#}
-{#        </form>#}
 
     <label for="datetime">Дата и время: </label>
-    <input type="datetime-local" name="datetime" id="datetime" required/>
+    <input type="datetime-local" name="datetime" id="datetime" value="1974-12-12T12:00" required/>
     <input type="button" value="ок" id="submit" name="submit">
-{#    <label for="coordinates">Новые координаты: </label>#}
-{#    <input type="text" id="coordinates">#}
-{#    <div id = "coordsWidget" style = 'padding:7px 15px 5px' > </div>#}
-
-
-
 
     <div id="loader1" style="position:absolute;z-index:1000; top:50%; left:50%;">
             <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
